@@ -81,8 +81,9 @@ import dad.idreamof.diesel.data.Message
 import dad.idreamof.diesel.data.Orientation
 
 /**
- * The chat page: a portrait viewport on top, the scrolling conversation in the middle,
- * and a message/voice input pinned to the bottom. All state comes from [ChatViewModel].
+ * The chat page: a portrait viewport, the scrolling conversation, and a message/voice
+ * input. In portrait the viewport sits on top of the conversation; in landscape the two
+ * sit side by side. All state comes from [ChatViewModel].
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -104,7 +105,8 @@ fun ChatScreen(
     }
 
     // Render orientation tracks device rotation: a portrait phone gets a wide (landscape)
-    // image to suit the top viewport, and a landscape phone gets a tall (portrait) one.
+    // image to suit the top viewport, and a landscape phone gets a tall (portrait) one
+    // to suit the side-by-side viewport.
     val deviceOrientation = LocalConfiguration.current.orientation
     LaunchedEffect(deviceOrientation) {
         viewModel.setImageOrientation(
