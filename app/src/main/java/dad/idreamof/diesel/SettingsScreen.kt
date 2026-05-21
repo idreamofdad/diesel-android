@@ -1,5 +1,6 @@
 package dad.idreamof.diesel
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -37,7 +39,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -46,8 +51,26 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dad.idreamof.diesel.data.AppSettings
 
 /**
- * Settings page. The "Connection" section is the local client config (which server to
- * reach); every other section maps to the server's [AppSettings] via GET/POST /settings.
+ * The sections of the settings page. The menu lists these; tapping one opens that
+ * section's fields. "Connection" is local client config; the rest map to the
+ * server's [AppSettings] via GET/POST /settings.
+ */
+private enum class SettingsSection(val title: String, val summary: String) {
+    Connection("Connection", "Which Diesel server this app talks to"),
+    LanguageModel("Language model", "API endpoint, key, model and system prompt"),
+    SpeechToText("Speech to text", "Transcription endpoint and model"),
+    TextToSpeech("Text to speech", "Voice synthesis endpoint and voice"),
+    ImageGeneration("Image generation", "ComfyUI endpoint and image prompts"),
+    Conversation("Conversation", "Theme and transcript behaviour"),
+    Server("Server (read-only)", "Bridges and network exposure status");
+
+    /** Read-only sections have nothing to persist, so the save action is hidden. */
+    val isSavable: Boolean get() = this != Server
+}
+
+/**
+ * Settings page. Shows a tappable menu of [SettingsSection]s; selecting one opens that
+ * section, and the back arrow returns to the menu.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
