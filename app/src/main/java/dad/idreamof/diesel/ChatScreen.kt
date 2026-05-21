@@ -211,13 +211,35 @@ private fun PortraitViewport(
         contentAlignment = Alignment.Center,
     ) {
         if (portraitUrl != null) {
-            // Fit (not Crop) so a wide landscape render is shown whole, not cropped.
+            // Render steps arrive as a stream of new URLs. Each step is decoded
+            // off-screen first and only swapped into view once Coil reports it
+            // fully loaded, so the viewport always shows a complete image and
+            // never an empty frame mid-load.
+            var shownUrl by remember { mutableStateOf(portraitUrl) }
+
+            // Visible image — only ever a URL that has finished decoding.
+            // Fit (not Crop) so a wide landscape render is shown whole.
             AsyncImage(
-                model = portraitUrl,
+                model = shownUrl,
                 contentDescription = "Portrait",
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize(),
             )
+
+            // Off-screen decoder for the latest step: fully transparent so it
+            // is never seen, it promotes itself to the visible layer once the
+            // image is decoded (a memory-cache hit there, so no reload flash).
+            if (portraitUrl != shownUrl) {
+                AsyncImage(
+                    model = portraitUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    onSuccess = { shownUrl = portraitUrl },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .alpha(0f),
+                )
+            }
         } else {
             Icon(
                 imageVector = Icons.Default.Person,
