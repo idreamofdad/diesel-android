@@ -48,12 +48,24 @@ data class State(
     val portraitUrl: String? = null,
 )
 
+/** Portrait render orientation for a turn. See [SendRequest.orientation]. */
+object Orientation {
+    const val PORTRAIT = "portrait"
+    const val LANDSCAPE = "landscape"
+}
+
 /** Body for POST /send. */
 @Serializable
 data class SendRequest(
     val text: String,
     /** Client's stable ID so reply audio routes back to it. */
     val origin: String? = null,
+    /**
+     * Orientation of the portrait rendered for this turn — see [Orientation].
+     * "landscape" transposes the render workflow's width/height for a wide image;
+     * omit or send "portrait" for the default.
+     */
+    val orientation: String? = null,
 )
 
 /** Response to POST /send. */
@@ -142,6 +154,8 @@ object EventType {
 data class WsCommand(
     val type: String,
     val text: String? = null,
+    /** Portrait orientation for a `send` command — see [Orientation]. */
+    val orientation: String? = null,
 )
 
 /**
