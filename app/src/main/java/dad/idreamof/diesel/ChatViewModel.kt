@@ -37,8 +37,11 @@ data class ChatUiState(
     val portraitProgress: Pair<Int, Int>? = null,
     val connection: ConnState = ConnState.Connecting,
     val isRecording: Boolean = false,
-    /** Orientation requested for the next turn's portrait — see [Orientation]. */
-    val imageOrientation: String = Orientation.PORTRAIT,
+    /**
+     * Orientation requested for the next turn's portrait — see [Orientation].
+     * Derived from device rotation (see [ChatViewModel.setImageOrientation]); not user-set.
+     */
+    val imageOrientation: String = Orientation.LANDSCAPE,
     /** Transient one-shot message for a snackbar; cleared via [ChatViewModel.dismissNotice]. */
     val notice: String? = null,
 )
@@ -191,15 +194,12 @@ class ChatViewModel(private val container: AppContainer) : ViewModel() {
 
     fun updateDraft(text: String) = set { it.copy(draft = text) }
 
-    /** Flips the portrait orientation requested for upcoming turns. */
-    fun toggleImageOrientation() = set {
-        it.copy(
-            imageOrientation = if (it.imageOrientation == Orientation.LANDSCAPE) {
-                Orientation.PORTRAIT
-            } else {
-                Orientation.LANDSCAPE
-            }
-        )
+    /**
+     * Sets the portrait orientation for upcoming turns. Driven programmatically from the
+     * device's screen rotation by the chat screen — there is no user-facing control.
+     */
+    fun setImageOrientation(orientation: String) = set {
+        if (it.imageOrientation == orientation) it else it.copy(imageOrientation = orientation)
     }
 
     /** Posts the current draft. The user message reappears via the `turn_started` event. */

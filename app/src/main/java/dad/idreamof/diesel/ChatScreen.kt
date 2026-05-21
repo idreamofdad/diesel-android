@@ -93,6 +93,19 @@ fun ChatScreen(
         }
     }
 
+    // Render orientation tracks device rotation: a portrait phone gets a wide (landscape)
+    // image to suit the top viewport, and a landscape phone gets a tall (portrait) one.
+    val deviceOrientation = LocalConfiguration.current.orientation
+    LaunchedEffect(deviceOrientation) {
+        viewModel.setImageOrientation(
+            if (deviceOrientation == Configuration.ORIENTATION_LANDSCAPE) {
+                Orientation.PORTRAIT
+            } else {
+                Orientation.LANDSCAPE
+            }
+        )
+    }
+
     val micPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted -> if (granted) viewModel.startRecording() }
@@ -114,18 +127,6 @@ fun ChatScreen(
                 },
                 actions = {
                     ConnectionDot(state.connection)
-                    val landscape = state.imageOrientation == Orientation.LANDSCAPE
-                    IconButton(onClick = viewModel::toggleImageOrientation) {
-                        Icon(
-                            imageVector = if (landscape) Icons.Default.CropLandscape
-                            else Icons.Default.CropPortrait,
-                            contentDescription = if (landscape) {
-                                "Image orientation: landscape (tap for portrait)"
-                            } else {
-                                "Image orientation: portrait (tap for landscape)"
-                            },
-                        )
-                    }
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
