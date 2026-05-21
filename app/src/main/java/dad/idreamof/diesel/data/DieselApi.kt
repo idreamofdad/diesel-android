@@ -79,22 +79,27 @@ class DieselApi(
     suspend fun getState(): State =
         get("/state").decode()
 
-    /** POST /send — post a user message. Throws [ApiException] with [isBusy] on 409. */
-    suspend fun send(text: String, origin: String) {
-        post("/send", SendRequest(text = text, origin = origin)).discard()
-    }
-
-    /** POST /clear — wipe the conversation. */
-    suspend fun clear() {
-        post("/clear", body = null).discard()
+    /**
+     * POST /send — post a user message. [orientation] selects the portrait render
+     * orientation (see [Orientation]). Throws [ApiException] with [isBusy] on 409.
+     */
+    suspend fun send(text: String, origin: String, orientation: String) {
+        post("/send", SendRequest(text = text, origin = origin, orientation = orientation))
+            .discard()
     }
 
     /** POST /transcribe — upload audio for STT; the recognized text is posted as a turn. */
-    suspend fun transcribe(audio: File, mediaType: String, origin: String): TranscribeResponse {
+    suspend fun transcribe(
+        audio: File,
+        mediaType: String,
+        origin: String,
+        orientation: String,
+    ): TranscribeResponse {
         val multipart = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart("file", audio.name, audio.asRequestBody(mediaType.toMediaType()))
             .addFormDataPart("origin", origin)
+            .addFormDataPart("orientation", orientation)
             .build()
         val request = Request.Builder().url(base + "/transcribe").post(multipart).build()
         return execute(request).decode()
