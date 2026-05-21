@@ -81,6 +81,7 @@ fun SettingsScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    var openSection by rememberSaveable { mutableStateOf<SettingsSection?>(null) }
 
     LaunchedEffect(state.notice) {
         state.notice?.let {
@@ -89,27 +90,32 @@ fun SettingsScreen(
         }
     }
 
+    // Back returns to the menu when a section is open, otherwise leaves the screen.
+    BackHandler(enabled = openSection != null) { openSection = null }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(openSection?.title ?: "Settings") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = { openSection?.let { openSection = null } ?: onBack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
-                    if (state.saving) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .padding(end = 16.dp)
-                                .size(24.dp),
-                            strokeWidth = 2.dp,
-                        )
-                    } else {
-                        IconButton(onClick = viewModel::saveSettings) {
-                            Icon(Icons.Default.Done, contentDescription = "Save settings")
+                    if (openSection?.isSavable == true) {
+                        if (state.saving) {
+                            CircularProgressIndicator(
+                                modifier = Modifier
+                                    .padding(end = 16.dp)
+                                    .size(24.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            IconButton(onClick = viewModel::saveSettings) {
+                                Icon(Icons.Default.Done, contentDescription = "Save settings")
+                            }
                         }
                     }
                 },
