@@ -37,6 +37,8 @@ data class ChatUiState(
     val portraitProgress: Pair<Int, Int>? = null,
     val connection: ConnState = ConnState.Connecting,
     val isRecording: Boolean = false,
+    /** Whether spoken replies (`audio_ready`) are played aloud. User-toggled in the top bar. */
+    val ttsEnabled: Boolean = true,
     /**
      * Orientation requested for the next turn's portrait — see [Orientation].
      * Derived from device rotation (see [ChatViewModel.setImageOrientation]); not user-set.
@@ -162,8 +164,9 @@ class ChatViewModel(private val container: AppContainer) : ViewModel() {
 
             EventType.AUDIO_READY -> {
                 val url = e.audioUrl
-                // Broadcast event; only play audio for turns this client originated.
-                if (!url.isNullOrEmpty() && e.origin == clientId) {
+                // Broadcast event; only play audio for turns this client originated,
+                // and only when the user has TTS switched on.
+                if (!url.isNullOrEmpty() && e.origin == clientId && _uiState.value.ttsEnabled) {
                     container.audioPlayer.play(
                         api.mediaUrl(url),
                         container.connectionStore.config.value.token,
@@ -193,6 +196,13 @@ class ChatViewModel(private val container: AppContainer) : ViewModel() {
     // --- user actions -------------------------------------------------------
 
     fun updateDraft(text: String) = set { it.copy(draft = text) }
+
+    /** Toggles spoken replies. Switching off also stops any audio playing now. */
+    fun toggleTts() {
+        val enabled = !_uiState.value.ttsEnabled
+        if (!enabled) container.audioPlayer.stop()
+        set { it.copy(ttsEnabled = enabled) }
+    }
 
     /**
      * Sets the portrait orientation for upcoming turns. Driven programmatically from the
