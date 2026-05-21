@@ -39,7 +39,6 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -52,9 +51,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -162,7 +164,6 @@ fun ChatScreen(
         ) {
             PortraitViewport(
                 portraitUrl = state.portraitUrl,
-                progress = state.portraitProgress,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(220.dp)
@@ -200,7 +201,6 @@ fun ChatScreen(
 @Composable
 private fun PortraitViewport(
     portraitUrl: String?,
-    progress: Pair<Int, Int>?,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -208,13 +208,35 @@ private fun PortraitViewport(
         contentAlignment = Alignment.Center,
     ) {
         if (portraitUrl != null) {
-            // Fit (not Crop) so a wide landscape render is shown whole, not cropped.
+            // Render steps arrive as a stream of new URLs. Each step is decoded
+            // off-screen first and only swapped into view once Coil reports it
+            // fully loaded, so the viewport always shows a complete image and
+            // never an empty frame mid-load.
+            var shownUrl by remember { mutableStateOf(portraitUrl) }
+
+            // Visible image — only ever a URL that has finished decoding.
+            // Fit (not Crop) so a wide landscape render is shown whole.
             AsyncImage(
-                model = portraitUrl,
+                model = shownUrl,
                 contentDescription = "Portrait",
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize(),
             )
+
+            // Off-screen decoder for the latest step: fully transparent so it
+            // is never seen, it promotes itself to the visible layer once the
+            // image is decoded (a memory-cache hit there, so no reload flash).
+            if (portraitUrl != shownUrl) {
+                AsyncImage(
+                    model = portraitUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    onSuccess = { shownUrl = portraitUrl },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .alpha(0f),
+                )
+            }
         } else {
             Icon(
                 imageVector = Icons.Default.Person,
@@ -222,27 +244,6 @@ private fun PortraitViewport(
                 modifier = Modifier.size(64.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        }
-
-        if (progress != null) {
-            val (step, total) = progress
-            val fraction = if (total > 0) step.toFloat() / total else 0f
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-            ) {
-                Text(
-                    text = "Rendering portrait $step/$total",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
-                )
-                LinearProgressIndicator(
-                    progress = { fraction },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
         }
     }
 }

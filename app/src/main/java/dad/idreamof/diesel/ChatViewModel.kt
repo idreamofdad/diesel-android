@@ -33,8 +33,6 @@ data class ChatUiState(
     val inFlight: Boolean = false,
     /** Absolute portrait URL, or null when no portrait has been rendered. */
     val portraitUrl: String? = null,
-    /** (step, total) while a portrait is rendering; null otherwise. */
-    val portraitProgress: Pair<Int, Int>? = null,
     val connection: ConnState = ConnState.Connecting,
     val isRecording: Boolean = false,
     /** Whether spoken replies (`audio_ready`) are played aloud. User-toggled in the top bar. */
@@ -73,7 +71,7 @@ class ChatViewModel(private val container: AppContainer) : ViewModel() {
     // --- session loop -------------------------------------------------------
 
     private suspend fun runSession() {
-        set { it.copy(connection = ConnState.Connecting, portraitUrl = null, portraitProgress = null) }
+        set { it.copy(connection = ConnState.Connecting, portraitUrl = null) }
         refreshState()
 
         var backoffMs = 1_000L
@@ -150,18 +148,11 @@ class ChatViewModel(private val container: AppContainer) : ViewModel() {
             }
 
             EventType.PORTRAIT_READY -> set {
-                it.copy(
-                    portraitUrl = e.portraitUrl?.let(api::mediaUrl) ?: it.portraitUrl,
-                    portraitProgress = null,
-                )
+                it.copy(portraitUrl = e.portraitUrl?.let(api::mediaUrl) ?: it.portraitUrl)
             }
 
             EventType.PORTRAIT_PROGRESS -> set {
-                it.copy(
-                    portraitUrl = e.portraitUrl?.let(api::mediaUrl) ?: it.portraitUrl,
-                    portraitProgress = if (e.step != null && e.total != null) e.step to e.total
-                    else it.portraitProgress,
-                )
+                it.copy(portraitUrl = e.portraitUrl?.let(api::mediaUrl) ?: it.portraitUrl)
             }
 
             EventType.AUDIO_READY -> {
@@ -186,7 +177,6 @@ class ChatViewModel(private val container: AppContainer) : ViewModel() {
                 it.copy(
                     messages = emptyList(),
                     portraitUrl = null,
-                    portraitProgress = null,
                     inFlight = false,
                 )
             }
