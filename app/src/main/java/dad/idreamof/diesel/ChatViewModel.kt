@@ -33,8 +33,6 @@ data class ChatUiState(
     val inFlight: Boolean = false,
     /** Absolute portrait URL, or null when no portrait has been rendered. */
     val portraitUrl: String? = null,
-    /** (step, total) while a portrait is rendering; null otherwise. */
-    val portraitProgress: Pair<Int, Int>? = null,
     val connection: ConnState = ConnState.Connecting,
     val isRecording: Boolean = false,
     /** Whether spoken replies (`audio_ready`) are played aloud. User-toggled in the top bar. */
