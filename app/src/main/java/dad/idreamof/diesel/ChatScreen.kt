@@ -30,6 +30,8 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
@@ -127,6 +129,20 @@ fun ChatScreen(
                 },
                 actions = {
                     ConnectionDot(state.connection)
+                    IconButton(onClick = viewModel::toggleTts) {
+                        Icon(
+                            imageVector = if (state.ttsEnabled) {
+                                Icons.Default.VolumeUp
+                            } else {
+                                Icons.Default.VolumeOff
+                            },
+                            contentDescription = if (state.ttsEnabled) {
+                                "Turn off spoken replies"
+                            } else {
+                                "Turn on spoken replies"
+                            },
+                        )
+                    }
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
