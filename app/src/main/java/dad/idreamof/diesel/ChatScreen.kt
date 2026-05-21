@@ -205,6 +205,44 @@ fun ChatScreen(
                 },
             )
         }
+
+        if (isLandscape) {
+            // Landscape: a tall portrait render beside the conversation.
+            Row(modifier = contentModifier) {
+                PortraitViewport(
+                    portraitUrl = state.portraitUrl,
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .weight(1f)
+                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .weight(1.4f)
+                ) {
+                    conversation(Modifier.weight(1f).fillMaxWidth())
+                    messageInput()
+                }
+            }
+        } else {
+            // Portrait: the portrait render stacked above the conversation.
+            Column(modifier = contentModifier) {
+                // Shrink the portrait while the soft keyboard is up so the
+                // conversation and input bar keep enough room.
+                val portraitHeight by animateDpAsState(
+                    targetValue = if (WindowInsets.isImeVisible) 120.dp else 220.dp,
+                    label = "portraitHeight",
+                )
+                PortraitViewport(
+                    portraitUrl = state.portraitUrl,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(portraitHeight)
+                )
+                conversation(Modifier.weight(1f).fillMaxWidth())
+                messageInput()
+            }
+        }
     }
 }
 
