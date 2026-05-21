@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -164,6 +165,13 @@ fun ChatScreen(
                 .fillMaxSize()
                 // Edge-to-edge disables the window's adjustResize; consume the IME
                 // inset here so the input bar rises with the keyboard.
+                //
+                // innerPadding's bottom is the navigation-bar inset; mark it
+                // consumed so the following imePadding() — whose IME inset is
+                // measured from the screen bottom and already spans the nav bar —
+                // doesn't add that height a second time and leave a gap above
+                // the keyboard on devices with a tall nav bar.
+                .consumeWindowInsets(innerPadding)
                 .imePadding()
         ) {
             // Shrink the portrait while the soft keyboard is up so the
