@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -155,6 +156,9 @@ fun ChatScreen(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
+                // Edge-to-edge disables the window's adjustResize; consume the IME
+                // inset here so the input bar rises with the keyboard.
+                .imePadding()
         ) {
             PortraitViewport(
                 portraitUrl = state.portraitUrl,
