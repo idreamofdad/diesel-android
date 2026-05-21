@@ -237,7 +237,9 @@ private fun MessageList(
     val listState = rememberLazyListState()
     val itemCount = messages.size + if (showTyping) 1 else 0
 
-    LaunchedEffect(itemCount) {
+    // Key on both inputs, not their sum: when a reply arrives the typing indicator
+    // is dropped (-1) as the message is appended (+1), leaving itemCount unchanged.
+    LaunchedEffect(messages.size, showTyping) {
         if (itemCount > 0) listState.animateScrollToItem(itemCount - 1)
     }
 
