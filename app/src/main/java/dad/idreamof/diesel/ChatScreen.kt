@@ -25,6 +25,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.CropLandscape
+import androidx.compose.material.icons.filled.CropPortrait
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
@@ -52,6 +54,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
@@ -60,6 +68,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import dad.idreamof.diesel.data.Message
+import dad.idreamof.diesel.data.Orientation
 
 /**
  * The chat page: a portrait viewport on top, the scrolling conversation in the middle,
@@ -105,6 +114,18 @@ fun ChatScreen(
                 },
                 actions = {
                     ConnectionDot(state.connection)
+                    val landscape = state.imageOrientation == Orientation.LANDSCAPE
+                    IconButton(onClick = viewModel::toggleImageOrientation) {
+                        Icon(
+                            imageVector = if (landscape) Icons.Default.CropLandscape
+                            else Icons.Default.CropPortrait,
+                            contentDescription = if (landscape) {
+                                "Image orientation: landscape (tap for portrait)"
+                            } else {
+                                "Image orientation: portrait (tap for landscape)"
+                            },
+                        )
+                    }
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
@@ -166,10 +187,11 @@ private fun PortraitViewport(
         contentAlignment = Alignment.Center,
     ) {
         if (portraitUrl != null) {
+            // Fit (not Crop) so a wide landscape render is shown whole, not cropped.
             AsyncImage(
                 model = portraitUrl,
                 contentDescription = "Portrait",
-                contentScale = ContentScale.Crop,
+                contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize(),
             )
         } else {

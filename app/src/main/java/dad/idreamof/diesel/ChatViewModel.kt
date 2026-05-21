@@ -10,6 +10,7 @@ import dad.idreamof.diesel.data.AppContainer
 import dad.idreamof.diesel.data.Event
 import dad.idreamof.diesel.data.EventType
 import dad.idreamof.diesel.data.Message
+import dad.idreamof.diesel.data.Orientation
 import dad.idreamof.diesel.data.RECORDING_MEDIA_TYPE
 import dad.idreamof.diesel.data.WsEvent
 import kotlinx.coroutines.CancellationException
@@ -36,6 +37,8 @@ data class ChatUiState(
     val portraitProgress: Pair<Int, Int>? = null,
     val connection: ConnState = ConnState.Connecting,
     val isRecording: Boolean = false,
+    /** Orientation requested for the next turn's portrait — see [Orientation]. */
+    val imageOrientation: String = Orientation.PORTRAIT,
     /** Transient one-shot message for a snackbar; cleared via [ChatViewModel.dismissNotice]. */
     val notice: String? = null,
 )
@@ -188,22 +191,26 @@ class ChatViewModel(private val container: AppContainer) : ViewModel() {
 
     fun updateDraft(text: String) = set { it.copy(draft = text) }
 
+    /** Flips the portrait orientation requested for upcoming turns. */
+    fun toggleImageOrientation() = set {
+        it.copy(
+            imageOrientation = if (it.imageOrientation == Orientation.LANDSCAPE) {
+                Orientation.PORTRAIT
+            } else {
+                Orientation.LANDSCAPE
+            }
+        )
+    }
+
     /** Posts the current draft. The user message reappears via the `turn_started` event. */
     fun send() {
         val text = _uiState.value.draft.trim()
         if (text.isEmpty() || _uiState.value.inFlight) return
+        val orientation = _uiState.value.imageOrientation
         set { it.copy(draft = "") }
         viewModelScope.launch {
-            runCatching { api.send(text, clientId) }
+            runCatching { api.send(text, clientId, orientation) }
                 .onFailure { e -> set { it.copy(draft = text, notice = friendly(e)) } }
-        }
-    }
-
-    /** Wipes the conversation. The UI clears in response to the `cleared` event. */
-    fun clearConversation() {
-        viewModelScope.launch {
-            runCatching { api.clear() }
-                .onFailure { e -> set { it.copy(notice = friendly(e)) } }
         }
     }
 
@@ -227,9 +234,10 @@ class ChatViewModel(private val container: AppContainer) : ViewModel() {
             set { it.copy(notice = "No audio captured") }
             return
         }
+        val orientation = _uiState.value.imageOrientation
         viewModelScope.launch {
             set { it.copy(status = "Transcribing…") }
-            runCatching { api.transcribe(file, RECORDING_MEDIA_TYPE, clientId) }
+            runCatching { api.transcribe(file, RECORDING_MEDIA_TYPE, clientId, orientation) }
                 .onSuccess { response ->
                     when {
                         response.text.isBlank() ->
