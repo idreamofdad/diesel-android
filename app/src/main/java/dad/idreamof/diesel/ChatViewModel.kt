@@ -58,7 +58,9 @@ class ChatViewModel(private val container: AppContainer) : ViewModel() {
     private val recorder = container.newAudioRecorder()
     private val clientId = container.connectionStore.clientId
 
-    private val _uiState = MutableStateFlow(ChatUiState())
+    private val _uiState = MutableStateFlow(
+        ChatUiState(ttsEnabled = container.connectionStore.ttsEnabled)
+    )
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     init {
@@ -201,6 +203,7 @@ class ChatViewModel(private val container: AppContainer) : ViewModel() {
     fun toggleTts() {
         val enabled = !_uiState.value.ttsEnabled
         if (!enabled) container.audioPlayer.stop()
+        container.connectionStore.setTtsEnabled(enabled)
         set { it.copy(ttsEnabled = enabled) }
     }
 

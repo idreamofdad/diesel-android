@@ -43,6 +43,17 @@ class ConnectionStore(context: Context) {
     val clientId: String = prefs.getString(KEY_CLIENT_ID, null) ?: UUID.randomUUID().toString()
         .also { prefs.edit().putString(KEY_CLIENT_ID, it).apply() }
 
+    /**
+     * Whether spoken replies are played aloud. A local UI preference, kept separate from
+     * [config] so toggling it does not restart the session.
+     */
+    val ttsEnabled: Boolean
+        get() = prefs.getBoolean(KEY_TTS_ENABLED, true)
+
+    fun setTtsEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_TTS_ENABLED, enabled).apply()
+    }
+
     private fun read() = ConnectionConfig(
         host = prefs.getString(KEY_HOST, null) ?: "10.0.2.2",
         port = prefs.getInt(KEY_PORT, 7777),
@@ -64,5 +75,6 @@ class ConnectionStore(context: Context) {
         const val KEY_PORT = "port"
         const val KEY_TOKEN = "token"
         const val KEY_CLIENT_ID = "client_id"
+        const val KEY_TTS_ENABLED = "tts_enabled"
     }
 }
