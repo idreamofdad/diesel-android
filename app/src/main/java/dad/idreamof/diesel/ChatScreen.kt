@@ -39,7 +39,6 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -165,7 +164,6 @@ fun ChatScreen(
         ) {
             PortraitViewport(
                 portraitUrl = state.portraitUrl,
-                progress = state.portraitProgress,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(220.dp)
@@ -203,7 +201,6 @@ fun ChatScreen(
 @Composable
 private fun PortraitViewport(
     portraitUrl: String?,
-    progress: Pair<Int, Int>?,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -247,27 +244,6 @@ private fun PortraitViewport(
                 modifier = Modifier.size(64.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        }
-
-        if (progress != null) {
-            val (step, total) = progress
-            val fraction = if (total > 0) step.toFloat() / total else 0f
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-            ) {
-                Text(
-                    text = "Rendering portrait $step/$total",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
-                )
-                LinearProgressIndicator(
-                    progress = { fraction },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
         }
     }
 }
