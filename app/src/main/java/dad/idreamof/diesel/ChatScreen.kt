@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -161,42 +162,32 @@ fun ChatScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
-                // Edge-to-edge disables the window's adjustResize; consume the IME
-                // inset here so the input bar rises with the keyboard.
-                //
-                // innerPadding's bottom is the navigation-bar inset; mark it
-                // consumed so the following imePadding() — whose IME inset is
-                // measured from the screen bottom and already spans the nav bar —
-                // doesn't add that height a second time and leave a gap above
-                // the keyboard on devices with a tall nav bar.
-                .consumeWindowInsets(innerPadding)
-                .imePadding()
-        ) {
-            // Shrink the portrait while the soft keyboard is up so the
-            // conversation and input bar keep enough room.
-            val portraitHeight by animateDpAsState(
-                targetValue = if (WindowInsets.isImeVisible) 120.dp else 220.dp,
-                label = "portraitHeight",
-            )
-            PortraitViewport(
-                portraitUrl = state.portraitUrl,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(portraitHeight)
-            )
+        val isLandscape = deviceOrientation == Configuration.ORIENTATION_LANDSCAPE
 
+        // Edge-to-edge disables the window's adjustResize; consume the IME
+        // inset here so the input bar rises with the keyboard.
+        //
+        // innerPadding's bottom is the navigation-bar inset; mark it
+        // consumed so the following imePadding() — whose IME inset is
+        // measured from the screen bottom and already spans the nav bar —
+        // doesn't add that height a second time and leave a gap above
+        // the keyboard on devices with a tall nav bar.
+        val contentModifier = Modifier
+            .padding(innerPadding)
+            .fillMaxSize()
+            .consumeWindowInsets(innerPadding)
+            .imePadding()
+
+        // The conversation list and input bar are identical in both layouts;
+        // only the placement of the portrait around them differs.
+        val conversation: @Composable (Modifier) -> Unit = { listModifier ->
             MessageList(
                 messages = state.messages,
                 showTyping = state.inFlight,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
+                modifier = listModifier,
             )
-
+        }
+        val messageInput: @Composable () -> Unit = {
             MessageInput(
                 draft = state.draft,
                 isRecording = state.isRecording,
