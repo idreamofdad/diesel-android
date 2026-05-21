@@ -356,7 +356,17 @@ private fun MessageInput(
                 onValueChange = onDraftChange,
                 modifier = Modifier
                     .weight(1f)
-                    .padding(horizontal = 8.dp),
+                    .padding(horizontal = 8.dp)
+                    // Enter sends; Shift+Enter inserts a newline.
+                    .onPreviewKeyEvent { event ->
+                        val isEnter = event.key == Key.Enter || event.key == Key.NumPadEnter
+                        if (isEnter && event.type == KeyEventType.KeyDown && !event.isShiftPressed) {
+                            onSend()
+                            true
+                        } else {
+                            false
+                        }
+                    },
                 placeholder = { Text(if (isRecording) "Recording…" else "Message") },
                 enabled = !isRecording,
                 shape = RoundedCornerShape(24.dp),
