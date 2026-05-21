@@ -135,218 +135,243 @@ fun SettingsScreen(
             return@Scaffold
         }
 
-        val settings = state.settings
         Column(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(if (openSection == null) 12.dp else 8.dp),
         ) {
-            // --- Connection (client-side) -----------------------------------
-            SettingsSection("Connection") {
-                Text(
-                    "Which Diesel server this app talks to. Use 10.0.2.2 from the " +
-                        "emulator, or the server's LAN IP from a device.",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                SettingField("Host", state.connection.host) { value ->
-                    viewModel.editConnection { it.copy(host = value) }
+            when (val section = openSection) {
+                null -> SettingsSection.entries.forEach { entry ->
+                    SectionMenuItem(entry) { openSection = entry }
                 }
-                SettingIntField("Port", state.connection.port) { value ->
-                    viewModel.editConnection { it.copy(port = value ?: 7777) }
-                }
-                SettingField(
-                    label = "Auth token",
-                    value = state.connection.token,
-                    helper = "Leave blank if the server has auth disabled.",
-                ) { value ->
-                    viewModel.editConnection { it.copy(token = value) }
-                }
-                Button(
-                    onClick = viewModel::saveConnection,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("Save & reconnect")
-                }
-            }
 
-            // --- Language model ---------------------------------------------
-            SettingsSection("Language model") {
-                SettingField("API endpoint", settings.apiEndpoint.orEmpty()) { value ->
-                    viewModel.editSettings { it.copy(apiEndpoint = value) }
-                }
-                SecretHint()
-                SettingField("API key", settings.apiKey.orEmpty()) { value ->
-                    viewModel.editSettings { it.copy(apiKey = value) }
-                }
-                SettingField("Model", settings.model.orEmpty()) { value ->
-                    viewModel.editSettings { it.copy(model = value) }
-                }
-                ModelChips(state.models[ProbeKind.LLM]) { picked ->
-                    viewModel.editSettings { it.copy(model = picked) }
-                }
-                ProbeButtons(
-                    kind = ProbeKind.LLM,
-                    busyProbe = state.busyProbe,
-                    onFetchModels = { viewModel.fetchModels(ProbeKind.LLM) },
-                    onTest = { viewModel.testConnection(ProbeKind.LLM) },
-                )
-                SettingField(
-                    "System prompt",
-                    settings.systemPrompt.orEmpty(),
-                    singleLine = false,
-                ) { value ->
-                    viewModel.editSettings { it.copy(systemPrompt = value) }
-                }
-                SettingIntField("History messages", settings.historyMessages) { value ->
-                    viewModel.editSettings { it.copy(historyMessages = value) }
-                }
+                else -> SectionContent(section, state, viewModel)
             }
-
-            // --- Speech to text ---------------------------------------------
-            SettingsSection("Speech to text") {
-                SettingField("STT endpoint", settings.sttEndpoint.orEmpty()) { value ->
-                    viewModel.editSettings { it.copy(sttEndpoint = value) }
-                }
-                SecretHint()
-                SettingField("STT API key", settings.sttApiKey.orEmpty()) { value ->
-                    viewModel.editSettings { it.copy(sttApiKey = value) }
-                }
-                SettingField("STT model", settings.sttModel.orEmpty()) { value ->
-                    viewModel.editSettings { it.copy(sttModel = value) }
-                }
-                ModelChips(state.models[ProbeKind.STT]) { picked ->
-                    viewModel.editSettings { it.copy(sttModel = picked) }
-                }
-                ProbeButtons(
-                    kind = ProbeKind.STT,
-                    busyProbe = state.busyProbe,
-                    onFetchModels = { viewModel.fetchModels(ProbeKind.STT) },
-                    onTest = { viewModel.testConnection(ProbeKind.STT) },
-                )
-            }
-
-            // --- Text to speech ---------------------------------------------
-            SettingsSection("Text to speech") {
-                SettingSwitch("Enable TTS", settings.enableTts ?: false) { value ->
-                    viewModel.editSettings { it.copy(enableTts = value) }
-                }
-                SettingField("TTS endpoint", settings.ttsEndpoint.orEmpty()) { value ->
-                    viewModel.editSettings { it.copy(ttsEndpoint = value) }
-                }
-                SecretHint()
-                SettingField("TTS API key", settings.ttsApiKey.orEmpty()) { value ->
-                    viewModel.editSettings { it.copy(ttsApiKey = value) }
-                }
-                SettingField("TTS model", settings.ttsModel.orEmpty()) { value ->
-                    viewModel.editSettings { it.copy(ttsModel = value) }
-                }
-                ModelChips(state.models[ProbeKind.TTS]) { picked ->
-                    viewModel.editSettings { it.copy(ttsModel = picked) }
-                }
-                SettingField("Voice", settings.ttsVoice.orEmpty()) { value ->
-                    viewModel.editSettings { it.copy(ttsVoice = value) }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = { viewModel.fetchModels(ProbeKind.TTS) },
-                        enabled = state.busyProbe == null,
-                    ) { Text("Models") }
-                    Button(
-                        onClick = viewModel::testTts,
-                        enabled = state.busyProbe == null,
-                    ) {
-                        ProbeButtonContent(
-                            label = "Play sample",
-                            busy = state.busyProbe == "tts-sample",
-                        )
-                    }
-                }
-            }
-
-            // --- Image generation -------------------------------------------
-            SettingsSection("Image generation") {
-                SettingSwitch("Enable image gen", settings.enableImageGen ?: false) { value ->
-                    viewModel.editSettings { it.copy(enableImageGen = value) }
-                }
-                SettingField("ComfyUI endpoint", settings.comfyuiEndpoint.orEmpty()) { value ->
-                    viewModel.editSettings { it.copy(comfyuiEndpoint = value) }
-                }
-                SettingField(
-                    "Image prompt",
-                    settings.imagePrompt.orEmpty(),
-                    singleLine = false,
-                ) { value -> viewModel.editSettings { it.copy(imagePrompt = value) } }
-                SettingField("Clothing", settings.imageClothing.orEmpty()) { value ->
-                    viewModel.editSettings { it.copy(imageClothing = value) }
-                }
-                SettingField("Nudity", settings.imageNudity.orEmpty()) { value ->
-                    viewModel.editSettings { it.copy(imageNudity = value) }
-                }
-                SettingField(
-                    "Negative prompt",
-                    settings.imageNegativePrompt.orEmpty(),
-                    singleLine = false,
-                ) { value -> viewModel.editSettings { it.copy(imageNegativePrompt = value) } }
-                SettingIntField("Steps", settings.imageSteps) { value ->
-                    viewModel.editSettings { it.copy(imageSteps = value) }
-                }
-                OutlinedButton(
-                    onClick = { viewModel.testConnection(ProbeKind.IMAGE) },
-                    enabled = state.busyProbe == null,
-                ) {
-                    ProbeButtonContent("Test connection", state.busyProbe == ProbeKind.IMAGE)
-                }
-            }
-
-            // --- Conversation -----------------------------------------------
-            SettingsSection("Conversation") {
-                SettingField("Theme", settings.theme.orEmpty()) { value ->
-                    viewModel.editSettings { it.copy(theme = value) }
-                }
-                SettingSwitch(
-                    "Continuous conversation",
-                    settings.continuousConversation ?: false,
-                ) { value ->
-                    viewModel.editSettings { it.copy(continuousConversation = value) }
-                }
-                SettingSwitch("Save transcript to disk", settings.saveToDisk ?: false) { value ->
-                    viewModel.editSettings { it.copy(saveToDisk = value) }
-                }
-            }
-
-            // --- Server (read-only) -----------------------------------------
-            SettingsSection("Server (read-only)") {
-                ReadOnlyRow("Server enabled", yesNo(settings.enableServer))
-                ReadOnlyRow("Server port", settings.serverPort?.toString() ?: "—")
-                ReadOnlyRow("Exposed on network", yesNo(settings.serverExposeNetwork))
-                ReadOnlyRow("SMS bridge", yesNo(settings.enableSms))
-                ReadOnlyRow("Telegram bridge", yesNo(settings.enableTelegram))
-            }
-
             Spacer(Modifier.size(8.dp))
         }
     }
 }
 
-// --- reusable pieces --------------------------------------------------------
+// --- menu -------------------------------------------------------------------
 
+/** A single tappable row in the settings menu. */
 @Composable
-private fun SettingsSection(title: String, content: @Composable () -> Unit) {
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-        Column(
+private fun SectionMenuItem(section: SettingsSection, onClick: () -> Unit) {
+    ElevatedCard(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            content()
+            Column(modifier = Modifier.weight(1f)) {
+                Text(section.title, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    section.summary,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
+
+// --- section bodies ---------------------------------------------------------
+
+@Composable
+private fun SectionContent(
+    section: SettingsSection,
+    state: SettingsUiState,
+    viewModel: SettingsViewModel,
+) {
+    val settings = state.settings
+    when (section) {
+        SettingsSection.Connection -> {
+            Text(
+                "Which Diesel server this app talks to. Use 10.0.2.2 from the " +
+                    "emulator, or the server's LAN IP from a device.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            SettingField("Host", state.connection.host) { value ->
+                viewModel.editConnection { it.copy(host = value) }
+            }
+            SettingIntField("Port", state.connection.port) { value ->
+                viewModel.editConnection { it.copy(port = value ?: 7777) }
+            }
+            SettingField(
+                label = "Auth token",
+                value = state.connection.token,
+                helper = "Leave blank if the server has auth disabled.",
+            ) { value ->
+                viewModel.editConnection { it.copy(token = value) }
+            }
+            Button(
+                onClick = viewModel::saveConnection,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Save & reconnect")
+            }
+        }
+
+        SettingsSection.LanguageModel -> {
+            SettingField("API endpoint", settings.apiEndpoint.orEmpty()) { value ->
+                viewModel.editSettings { it.copy(apiEndpoint = value) }
+            }
+            SecretHint()
+            SettingField("API key", settings.apiKey.orEmpty()) { value ->
+                viewModel.editSettings { it.copy(apiKey = value) }
+            }
+            SettingField("Model", settings.model.orEmpty()) { value ->
+                viewModel.editSettings { it.copy(model = value) }
+            }
+            ModelChips(state.models[ProbeKind.LLM]) { picked ->
+                viewModel.editSettings { it.copy(model = picked) }
+            }
+            ProbeButtons(
+                kind = ProbeKind.LLM,
+                busyProbe = state.busyProbe,
+                onFetchModels = { viewModel.fetchModels(ProbeKind.LLM) },
+                onTest = { viewModel.testConnection(ProbeKind.LLM) },
+            )
+            SettingField(
+                "System prompt",
+                settings.systemPrompt.orEmpty(),
+                singleLine = false,
+            ) { value ->
+                viewModel.editSettings { it.copy(systemPrompt = value) }
+            }
+            SettingIntField("History messages", settings.historyMessages) { value ->
+                viewModel.editSettings { it.copy(historyMessages = value) }
+            }
+        }
+
+        SettingsSection.SpeechToText -> {
+            SettingField("STT endpoint", settings.sttEndpoint.orEmpty()) { value ->
+                viewModel.editSettings { it.copy(sttEndpoint = value) }
+            }
+            SecretHint()
+            SettingField("STT API key", settings.sttApiKey.orEmpty()) { value ->
+                viewModel.editSettings { it.copy(sttApiKey = value) }
+            }
+            SettingField("STT model", settings.sttModel.orEmpty()) { value ->
+                viewModel.editSettings { it.copy(sttModel = value) }
+            }
+            ModelChips(state.models[ProbeKind.STT]) { picked ->
+                viewModel.editSettings { it.copy(sttModel = picked) }
+            }
+            ProbeButtons(
+                kind = ProbeKind.STT,
+                busyProbe = state.busyProbe,
+                onFetchModels = { viewModel.fetchModels(ProbeKind.STT) },
+                onTest = { viewModel.testConnection(ProbeKind.STT) },
+            )
+        }
+
+        SettingsSection.TextToSpeech -> {
+            SettingSwitch("Enable TTS", settings.enableTts ?: false) { value ->
+                viewModel.editSettings { it.copy(enableTts = value) }
+            }
+            SettingField("TTS endpoint", settings.ttsEndpoint.orEmpty()) { value ->
+                viewModel.editSettings { it.copy(ttsEndpoint = value) }
+            }
+            SecretHint()
+            SettingField("TTS API key", settings.ttsApiKey.orEmpty()) { value ->
+                viewModel.editSettings { it.copy(ttsApiKey = value) }
+            }
+            SettingField("TTS model", settings.ttsModel.orEmpty()) { value ->
+                viewModel.editSettings { it.copy(ttsModel = value) }
+            }
+            ModelChips(state.models[ProbeKind.TTS]) { picked ->
+                viewModel.editSettings { it.copy(ttsModel = picked) }
+            }
+            SettingField("Voice", settings.ttsVoice.orEmpty()) { value ->
+                viewModel.editSettings { it.copy(ttsVoice = value) }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = { viewModel.fetchModels(ProbeKind.TTS) },
+                    enabled = state.busyProbe == null,
+                ) { Text("Models") }
+                Button(
+                    onClick = viewModel::testTts,
+                    enabled = state.busyProbe == null,
+                ) {
+                    ProbeButtonContent(
+                        label = "Play sample",
+                        busy = state.busyProbe == "tts-sample",
+                    )
+                }
+            }
+        }
+
+        SettingsSection.ImageGeneration -> {
+            SettingSwitch("Enable image gen", settings.enableImageGen ?: false) { value ->
+                viewModel.editSettings { it.copy(enableImageGen = value) }
+            }
+            SettingField("ComfyUI endpoint", settings.comfyuiEndpoint.orEmpty()) { value ->
+                viewModel.editSettings { it.copy(comfyuiEndpoint = value) }
+            }
+            SettingField(
+                "Image prompt",
+                settings.imagePrompt.orEmpty(),
+                singleLine = false,
+            ) { value -> viewModel.editSettings { it.copy(imagePrompt = value) } }
+            SettingField("Clothing", settings.imageClothing.orEmpty()) { value ->
+                viewModel.editSettings { it.copy(imageClothing = value) }
+            }
+            SettingField("Nudity", settings.imageNudity.orEmpty()) { value ->
+                viewModel.editSettings { it.copy(imageNudity = value) }
+            }
+            SettingField(
+                "Negative prompt",
+                settings.imageNegativePrompt.orEmpty(),
+                singleLine = false,
+            ) { value -> viewModel.editSettings { it.copy(imageNegativePrompt = value) } }
+            SettingIntField("Steps", settings.imageSteps) { value ->
+                viewModel.editSettings { it.copy(imageSteps = value) }
+            }
+            OutlinedButton(
+                onClick = { viewModel.testConnection(ProbeKind.IMAGE) },
+                enabled = state.busyProbe == null,
+            ) {
+                ProbeButtonContent("Test connection", state.busyProbe == ProbeKind.IMAGE)
+            }
+        }
+
+        SettingsSection.Conversation -> {
+            SettingField("Theme", settings.theme.orEmpty()) { value ->
+                viewModel.editSettings { it.copy(theme = value) }
+            }
+            SettingSwitch(
+                "Continuous conversation",
+                settings.continuousConversation ?: false,
+            ) { value ->
+                viewModel.editSettings { it.copy(continuousConversation = value) }
+            }
+            SettingSwitch("Save transcript to disk", settings.saveToDisk ?: false) { value ->
+                viewModel.editSettings { it.copy(saveToDisk = value) }
+            }
+        }
+
+        SettingsSection.Server -> {
+            ReadOnlyRow("Server enabled", yesNo(settings.enableServer))
+            ReadOnlyRow("Server port", settings.serverPort?.toString() ?: "—")
+            ReadOnlyRow("Exposed on network", yesNo(settings.serverExposeNetwork))
+            ReadOnlyRow("SMS bridge", yesNo(settings.enableSms))
+            ReadOnlyRow("Telegram bridge", yesNo(settings.enableTelegram))
+        }
+    }
+}
+
+// --- reusable pieces --------------------------------------------------------
 
 @Composable
 private fun SettingField(
