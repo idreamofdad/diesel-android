@@ -1,0 +1,423 @@
+package dad.idreamof.diesel
+
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import dad.idreamof.diesel.data.AppSettings
+
+/**
+ * Settings page. The "Connection" section is the local client config (which server to
+ * reach); every other section maps to the server's [AppSettings] via GET/POST /settings.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsScreen(
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory),
+) {
+    val state by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(state.notice) {
+        state.notice?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.dismissNotice()
+        }
+    }
+
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                title = { Text("Settings") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    if (state.saving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .padding(end = 16.dp)
+                                .size(24.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        IconButton(onClick = viewModel::saveSettings) {
+                            Icon(Icons.Default.Done, contentDescription = "Save settings")
+                        }
+                    }
+                },
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { innerPadding ->
+        if (state.loading) {
+            Box(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator()
+            }
+            return@Scaffold
+        }
+
+        val settings = state.settings
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            // --- Connection (client-side) -----------------------------------
+            SettingsSection("Connection") {
+                Text(
+                    "Which Diesel server this app talks to. Use 10.0.2.2 from the " +
+                        "emulator, or the server's LAN IP from a device.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                SettingField("Host", state.connection.host) { value ->
+                    viewModel.editConnection { it.copy(host = value) }
+                }
+                SettingIntField("Port", state.connection.port) { value ->
+                    viewModel.editConnection { it.copy(port = value ?: 7777) }
+                }
+                SettingField(
+                    label = "Auth token",
+                    value = state.connection.token,
+                    helper = "Leave blank if the server has auth disabled.",
+                ) { value ->
+                    viewModel.editConnection { it.copy(token = value) }
+                }
+                Button(
+                    onClick = viewModel::saveConnection,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Save & reconnect")
+                }
+            }
+
+            // --- Language model ---------------------------------------------
+            SettingsSection("Language model") {
+                SettingField("API endpoint", settings.apiEndpoint.orEmpty()) { value ->
+                    viewModel.editSettings { it.copy(apiEndpoint = value) }
+                }
+                SecretHint()
+                SettingField("API key", settings.apiKey.orEmpty()) { value ->
+                    viewModel.editSettings { it.copy(apiKey = value) }
+                }
+                SettingField("Model", settings.model.orEmpty()) { value ->
+                    viewModel.editSettings { it.copy(model = value) }
+                }
+                ModelChips(state.models[ProbeKind.LLM]) { picked ->
+                    viewModel.editSettings { it.copy(model = picked) }
+                }
+                ProbeButtons(
+                    kind = ProbeKind.LLM,
+                    busyProbe = state.busyProbe,
+                    onFetchModels = { viewModel.fetchModels(ProbeKind.LLM) },
+                    onTest = { viewModel.testConnection(ProbeKind.LLM) },
+                )
+                SettingField(
+                    "System prompt",
+                    settings.systemPrompt.orEmpty(),
+                    singleLine = false,
+                ) { value ->
+                    viewModel.editSettings { it.copy(systemPrompt = value) }
+                }
+                SettingIntField("History messages", settings.historyMessages) { value ->
+                    viewModel.editSettings { it.copy(historyMessages = value) }
+                }
+            }
+
+            // --- Speech to text ---------------------------------------------
+            SettingsSection("Speech to text") {
+                SettingField("STT endpoint", settings.sttEndpoint.orEmpty()) { value ->
+                    viewModel.editSettings { it.copy(sttEndpoint = value) }
+                }
+                SecretHint()
+                SettingField("STT API key", settings.sttApiKey.orEmpty()) { value ->
+                    viewModel.editSettings { it.copy(sttApiKey = value) }
+                }
+                SettingField("STT model", settings.sttModel.orEmpty()) { value ->
+                    viewModel.editSettings { it.copy(sttModel = value) }
+                }
+                ModelChips(state.models[ProbeKind.STT]) { picked ->
+                    viewModel.editSettings { it.copy(sttModel = picked) }
+                }
+                ProbeButtons(
+                    kind = ProbeKind.STT,
+                    busyProbe = state.busyProbe,
+                    onFetchModels = { viewModel.fetchModels(ProbeKind.STT) },
+                    onTest = { viewModel.testConnection(ProbeKind.STT) },
+                )
+            }
+
+            // --- Text to speech ---------------------------------------------
+            SettingsSection("Text to speech") {
+                SettingSwitch("Enable TTS", settings.enableTts ?: false) { value ->
+                    viewModel.editSettings { it.copy(enableTts = value) }
+                }
+                SettingField("TTS endpoint", settings.ttsEndpoint.orEmpty()) { value ->
+                    viewModel.editSettings { it.copy(ttsEndpoint = value) }
+                }
+                SecretHint()
+                SettingField("TTS API key", settings.ttsApiKey.orEmpty()) { value ->
+                    viewModel.editSettings { it.copy(ttsApiKey = value) }
+                }
+                SettingField("TTS model", settings.ttsModel.orEmpty()) { value ->
+                    viewModel.editSettings { it.copy(ttsModel = value) }
+                }
+                ModelChips(state.models[ProbeKind.TTS]) { picked ->
+                    viewModel.editSettings { it.copy(ttsModel = picked) }
+                }
+                SettingField("Voice", settings.ttsVoice.orEmpty()) { value ->
+                    viewModel.editSettings { it.copy(ttsVoice = value) }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = { viewModel.fetchModels(ProbeKind.TTS) },
+                        enabled = state.busyProbe == null,
+                    ) { Text("Models") }
+                    Button(
+                        onClick = viewModel::testTts,
+                        enabled = state.busyProbe == null,
+                    ) {
+                        ProbeButtonContent(
+                            label = "Play sample",
+                            busy = state.busyProbe == "tts-sample",
+                        )
+                    }
+                }
+            }
+
+            // --- Image generation -------------------------------------------
+            SettingsSection("Image generation") {
+                SettingSwitch("Enable image gen", settings.enableImageGen ?: false) { value ->
+                    viewModel.editSettings { it.copy(enableImageGen = value) }
+                }
+                SettingField("ComfyUI endpoint", settings.comfyuiEndpoint.orEmpty()) { value ->
+                    viewModel.editSettings { it.copy(comfyuiEndpoint = value) }
+                }
+                SettingField(
+                    "Image prompt",
+                    settings.imagePrompt.orEmpty(),
+                    singleLine = false,
+                ) { value -> viewModel.editSettings { it.copy(imagePrompt = value) } }
+                SettingField("Clothing", settings.imageClothing.orEmpty()) { value ->
+                    viewModel.editSettings { it.copy(imageClothing = value) }
+                }
+                SettingField("Nudity", settings.imageNudity.orEmpty()) { value ->
+                    viewModel.editSettings { it.copy(imageNudity = value) }
+                }
+                SettingField(
+                    "Negative prompt",
+                    settings.imageNegativePrompt.orEmpty(),
+                    singleLine = false,
+                ) { value -> viewModel.editSettings { it.copy(imageNegativePrompt = value) } }
+                SettingIntField("Steps", settings.imageSteps) { value ->
+                    viewModel.editSettings { it.copy(imageSteps = value) }
+                }
+                OutlinedButton(
+                    onClick = { viewModel.testConnection(ProbeKind.IMAGE) },
+                    enabled = state.busyProbe == null,
+                ) {
+                    ProbeButtonContent("Test connection", state.busyProbe == ProbeKind.IMAGE)
+                }
+            }
+
+            // --- Conversation -----------------------------------------------
+            SettingsSection("Conversation") {
+                SettingField("Theme", settings.theme.orEmpty()) { value ->
+                    viewModel.editSettings { it.copy(theme = value) }
+                }
+                SettingSwitch(
+                    "Continuous conversation",
+                    settings.continuousConversation ?: false,
+                ) { value ->
+                    viewModel.editSettings { it.copy(continuousConversation = value) }
+                }
+                SettingSwitch("Save transcript to disk", settings.saveToDisk ?: false) { value ->
+                    viewModel.editSettings { it.copy(saveToDisk = value) }
+                }
+            }
+
+            // --- Server (read-only) -----------------------------------------
+            SettingsSection("Server (read-only)") {
+                ReadOnlyRow("Server enabled", yesNo(settings.enableServer))
+                ReadOnlyRow("Server port", settings.serverPort?.toString() ?: "—")
+                ReadOnlyRow("Exposed on network", yesNo(settings.serverExposeNetwork))
+                ReadOnlyRow("SMS bridge", yesNo(settings.enableSms))
+                ReadOnlyRow("Telegram bridge", yesNo(settings.enableTelegram))
+            }
+
+            Spacer(Modifier.size(8.dp))
+        }
+    }
+}
+
+// --- reusable pieces --------------------------------------------------------
+
+@Composable
+private fun SettingsSection(title: String, content: @Composable () -> Unit) {
+    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            content()
+        }
+    }
+}
+
+@Composable
+private fun SettingField(
+    label: String,
+    value: String,
+    helper: String? = null,
+    singleLine: Boolean = true,
+    onChange: (String) -> Unit,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onChange,
+        label = { Text(label) },
+        supportingText = helper?.let { { Text(it) } },
+        singleLine = singleLine,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+@Composable
+private fun SettingIntField(label: String, value: Int?, onChange: (Int?) -> Unit) {
+    OutlinedTextField(
+        value = value?.toString() ?: "",
+        onValueChange = { text -> onChange(text.trim().toIntOrNull()) },
+        label = { Text(label) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+@Composable
+private fun SettingSwitch(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, modifier = Modifier.weight(1f))
+        Switch(checked = checked, onCheckedChange = onChange)
+    }
+}
+
+@Composable
+private fun SecretHint() {
+    Text(
+        text = "Secrets show as ${AppSettings.MASKED} — leave unchanged to keep the stored value.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun ModelChips(models: List<String>?, onPick: (String) -> Unit) {
+    if (models.isNullOrEmpty()) return
+    Row(
+        modifier = Modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        models.forEach { model ->
+            AssistChip(onClick = { onPick(model) }, label = { Text(model) })
+        }
+    }
+}
+
+@Composable
+private fun ProbeButtons(
+    kind: String,
+    busyProbe: String?,
+    onFetchModels: () -> Unit,
+    onTest: () -> Unit,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(onClick = onFetchModels, enabled = busyProbe == null) {
+            Text("Models")
+        }
+        OutlinedButton(onClick = onTest, enabled = busyProbe == null) {
+            ProbeButtonContent("Test connection", busyProbe == kind)
+        }
+    }
+}
+
+@Composable
+private fun ProbeButtonContent(label: String, busy: Boolean) {
+    if (busy) {
+        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+        Spacer(Modifier.width(8.dp))
+    }
+    Text(label)
+}
+
+@Composable
+private fun ReadOnlyRow(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth()) {
+        Text(label, modifier = Modifier.weight(1f))
+        Text(value, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+private fun yesNo(value: Boolean?): String = when (value) {
+    true -> "Yes"
+    false -> "No"
+    null -> "—"
+}
