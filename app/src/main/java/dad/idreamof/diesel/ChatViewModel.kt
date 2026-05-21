@@ -71,7 +71,7 @@ class ChatViewModel(private val container: AppContainer) : ViewModel() {
     // --- session loop -------------------------------------------------------
 
     private suspend fun runSession() {
-        set { it.copy(connection = ConnState.Connecting, portraitUrl = null, portraitProgress = null) }
+        set { it.copy(connection = ConnState.Connecting, portraitUrl = null) }
         refreshState()
 
         var backoffMs = 1_000L
@@ -148,18 +148,11 @@ class ChatViewModel(private val container: AppContainer) : ViewModel() {
             }
 
             EventType.PORTRAIT_READY -> set {
-                it.copy(
-                    portraitUrl = e.portraitUrl?.let(api::mediaUrl) ?: it.portraitUrl,
-                    portraitProgress = null,
-                )
+                it.copy(portraitUrl = e.portraitUrl?.let(api::mediaUrl) ?: it.portraitUrl)
             }
 
             EventType.PORTRAIT_PROGRESS -> set {
-                it.copy(
-                    portraitUrl = e.portraitUrl?.let(api::mediaUrl) ?: it.portraitUrl,
-                    portraitProgress = if (e.step != null && e.total != null) e.step to e.total
-                    else it.portraitProgress,
-                )
+                it.copy(portraitUrl = e.portraitUrl?.let(api::mediaUrl) ?: it.portraitUrl)
             }
 
             EventType.AUDIO_READY -> {
@@ -184,7 +177,6 @@ class ChatViewModel(private val container: AppContainer) : ViewModel() {
                 it.copy(
                     messages = emptyList(),
                     portraitUrl = null,
-                    portraitProgress = null,
                     inFlight = false,
                 )
             }
